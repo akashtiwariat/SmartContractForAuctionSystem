@@ -2,6 +2,8 @@
 
 pragma solidity >=0.4.16 <0.9.0;
 
+
+
 contract Auction {
 
     // Auction Owner
@@ -42,6 +44,11 @@ contract Auction {
     _;
     }
 
+     modifier notOnlyOwner() {
+    require(msg.sender != ownerofAuctioner, "Owner cann't of this contract can call this function");
+    _;
+    }
+
     //event for if auction is created then emit from the create-auction function
     event NewAuction(uint auctionId, string description, uint startTime, uint endTime, uint minBidValue);
     //event for if someone bid for particular auction id
@@ -68,16 +75,18 @@ function createAuction(
         auction.minBidValue = _minBidValue;
         auction.highestBidder = payable(address(0));
         auction.highestBid = 0;
+        auction.closed=true;
         
         emit NewAuction(_auctionId, _description, _startTime, _endTime, _minBidValue);
     }
     //2) Place Bids On Active Auctions {AuctionID , BidValue} 
-function bid(uint _auctionId,uint _bidValue)
+function bid(uint _auctionId,uint _bidValue)notOnlyOwner
           public payable {
         require(block.timestamp >= auctions[_auctionId].startTime, "Auction has not started yet");
         require(block.timestamp <= auctions[_auctionId].endTime, "Auction has already ended");
         require(_bidValue >= auctions[_auctionId].minBidValue, "Bid value must be greater than or equal to the minimum bid value");
         require(_bidValue > auctions[_auctionId].highestBid, "Bid value must be greater than current highest bid");
+        require(auctions[_auctionId].closed==true, "Auction is closed");
         auctions[_auctionId].highestBidder = payable(msg.sender);
         auctions[_auctionId].highestBid = _bidValue;
         auctions[_auctionId].bidders.push(msg.sender);
@@ -99,28 +108,23 @@ function getAllBidsByAuctionOwner(uint _auctionId) public view onlyOwner returns
 
     //4) Bid Owners Can see list of all Auctions where they placed their Bids.
 function getAllAuctionsByBidder(address _bidder) public view returns (uint[] memory) {
-
-    return bidderAuctions[_bidder];
-
+        uint[] memory auctionsByBidder = new uint[](bidderAuctions[_bidder].length);
+        for (uint i = 0; i < bidderAuctions[_bidder].length; i++) {
+            auctionsByBidder[i] = bidderAuctions[_bidder][i];
+        }
+        return auctionsByBidder;
     }
+
    
     //5) Auction Owner can select a bid and Mark the Auction status as Closed.
-function closeAuction(uint _auctionId, uint _bidIndex) public onlyOwner {
+function closeAuction(uint _auctionId) public onlyOwner {
     AuctionInfo storage auction = auctions[_auctionId];
-    require(!auction.closed, "Auction is already closed");
-    require(_bidIndex < auction.bids.length, "Invalid bid index");
-
-    auction.closed = true;
-    Bid storage winningBid = auction.bids[_bidIndex];
-    auction.highestBidder = winningBid.bidder;
-    auction.highestBid = winningBid.amount;
-
-    // Transfer the bid amount to the auction owner
-    ownerofAuctioner.transfer(auction.highestBid);
-
+    require(auction.closed==true, "Auction is already closed");
+    auction.closed = false;
+  //  transfer(auction.highestBidder)';
+   
     emit AuctionEnded(_auctionId, auction.highestBidder, auction.highestBid);
+
 }
-
-
 
 }
