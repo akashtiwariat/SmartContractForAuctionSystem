@@ -45,7 +45,7 @@ contract Auction {
     }
 
      modifier notOnlyOwner() {
-    require(msg.sender != ownerofAuctioner, "Owner cann't of this contract can call this function");
+    require(msg.sender != ownerofAuctioner, "Owner can't call this smart contract function");
     _;
     }
 
